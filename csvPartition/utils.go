@@ -24,10 +24,8 @@ func localpathGenerator(fpath []string, shard uint64) (string, error) {
 	}
 
 	filename := pathfile[len(pathfile)-1]
-	if shard > 0 {
-		filename = strings.TrimSuffix(filename, ".csv")
-		filename = csvfilename(filename, shard)
-	}
+	filename = strings.TrimSuffix(filename, ".csv")
+	filename = csvfilename(filename, shard)
 
 	pathfile[len(pathfile)-1] = filename
 

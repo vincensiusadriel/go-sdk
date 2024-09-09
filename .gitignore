@@ -1,0 +1,15 @@
+# goland
+.idea
+
+# vim swap
+*.swp
+
+# directory ignore
+vendor
+
+# cover
+coverage.out
+coverage-report.out
+
+# mac stuff
+.DS_Store

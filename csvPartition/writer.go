@@ -5,8 +5,37 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strings"
+	"sync"
 )
+
+type CSVPartitionWriter struct {
+	count  uint64
+	maxRow uint64
+	shard  uint64
+
+	file   *os.File
+	writer *csv.Writer
+
+	fPath []string
+
+	mut *sync.RWMutex
+}
+
+func NewWriter(fPath []string, maxRow uint64) (*CSVPartitionWriter, error) {
+	c := &CSVPartitionWriter{
+		maxRow: maxRow,
+		count:  0,
+		shard:  0,
+		fPath:  fPath,
+		mut:    &sync.RWMutex{},
+	}
+	if err := c.makefile(); err != nil {
+		return nil, err
+	}
+
+	return c, nil
+
+}
 
 func (c *CSVPartitionWriter) Write(record []string) error {
 	if c == nil {
@@ -17,10 +46,10 @@ func (c *CSVPartitionWriter) Write(record []string) error {
 	defer c.mut.Unlock()
 
 	if c.count >= c.maxRow && c.maxRow != 0 {
-		c.shard++
 		if err := c.Close(); err != nil {
 			return err
 		}
+		c.shard++
 		if err := c.makefile(); err != nil {
 			return err
 		}
@@ -55,22 +84,11 @@ func (c *CSVPartitionWriter) Close() error {
 }
 
 func (c *CSVPartitionWriter) makefile() error {
-	pathfile := c.fPath
-	shard := c.shard
-
-	if len(pathfile) == 0 {
-		return errors.New("error makefile : empty path file")
+	localPath, err := localpathGenerator(c.fPath, c.shard)
+	if err != nil {
+		return err
 	}
 
-	filename := pathfile[len(pathfile)-1]
-	if shard > 0 {
-		filename = strings.TrimSuffix(filename, ".csv")
-		filename = csvfilename(filename, shard)
-	}
-
-	pathfile[len(pathfile)-1] = filename
-
-	localPath := filepath.Join(pathfile...)
 	if err := os.MkdirAll(filepath.Dir(localPath), os.ModePerm); err != nil {
 		return err
 	}

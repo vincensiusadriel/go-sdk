@@ -9,9 +9,10 @@ import (
 )
 
 type CSVPartitionWriter struct {
-	count  uint64
-	maxRow uint64
-	shard  uint64
+	count         uint64
+	maxRow        uint64
+	shard         uint64
+	flushinterval uint64
 
 	file   *os.File
 	writer *csv.Writer
@@ -21,13 +22,14 @@ type CSVPartitionWriter struct {
 	mut *sync.RWMutex
 }
 
-func NewWriter(fPath []string, maxRow uint64) (*CSVPartitionWriter, error) {
+func NewWriter(fPath []string, maxRow uint64, flushintervanl uint64) (*CSVPartitionWriter, error) {
 	c := &CSVPartitionWriter{
-		maxRow: maxRow,
-		count:  0,
-		shard:  0,
-		fPath:  fPath,
-		mut:    &sync.RWMutex{},
+		maxRow:        maxRow,
+		flushinterval: flushintervanl,
+		count:         0,
+		shard:         0,
+		fPath:         fPath,
+		mut:           &sync.RWMutex{},
 	}
 	if err := c.makefile(); err != nil {
 		return nil, err
@@ -59,7 +61,13 @@ func (c *CSVPartitionWriter) Write(record []string) error {
 		return errors.New("empty writer")
 	}
 
-	c.writer.Write(record)
+	if err := c.writer.Write(record); err != nil {
+		return err
+	}
+
+	if c.count%c.flushinterval == 0 {
+		c.writer.Flush()
+	}
 	c.count++
 
 	return nil
